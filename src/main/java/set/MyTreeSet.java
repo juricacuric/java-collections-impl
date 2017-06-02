@@ -27,6 +27,25 @@ public class MyTreeSet<T> implements Set<T> {
 
     @Override
     public boolean contains(Object o) {
+        MyNode<T> iterNode = root;
+        while (iterNode != null) {
+            int result = comparator.compare(iterNode.getValue(), (T) o);
+            if (result < 0) {
+                if (iterNode.getLeft() == null) {
+                    return false;
+                } else {
+                    iterNode = iterNode.getLeft();
+                }
+            } else if (result > 0) {
+                if (iterNode.getRight() == null) {
+                    return false;
+                } else {
+                    iterNode = iterNode.getRight();
+                }
+            } else {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -50,6 +69,7 @@ public class MyTreeSet<T> implements Set<T> {
         if (root == null) {
             root = new MyNode<>(t);
             root.setBlack();
+            size++;
             return true;
         }
         MyNode<T> node = new MyNode<>(t);
@@ -67,20 +87,11 @@ public class MyTreeSet<T> implements Set<T> {
                 if (iterNode.getLeft() == null) {
                     iterNode.setLeft(nodeForAdding);
                     nodeForAdding.setParent(iterNode);
-                    if (nodeForAdding.isUncleRed()) {
-                        uncleIsRedRule(nodeForAdding);
-                    } else if (nodeForAdding.isUncleBlack()) {
-                        if (nodeForAdding.isLeftLeftChild()) {
-                            uncleIsBlackLeftLeftCase(nodeForAdding);
-                        } else if (nodeForAdding.isLeftRightChild()) {
-                            uncleIsBlackLeftRightCase(nodeForAdding);
-                        } else if (nodeForAdding.isRightRightChild()) {
-
-                        }
-                    }
+                    addNodeRules(nodeForAdding);
 
                     iterNode = null;
                     isAdded = true;
+                    size++;
                 } else {
                     iterNode = iterNode.getLeft();
                 }
@@ -88,8 +99,11 @@ public class MyTreeSet<T> implements Set<T> {
                 if (iterNode.getRight() == null) {
                     iterNode.setRight(nodeForAdding);
                     nodeForAdding.setParent(iterNode);
+                    addNodeRules(nodeForAdding);
+
                     iterNode = null;
                     isAdded = true;
+                    size++;
                 } else {
                     iterNode = iterNode.getRight();
                 }
@@ -98,6 +112,22 @@ public class MyTreeSet<T> implements Set<T> {
             }
         }
         return isAdded;
+    }
+
+    private void addNodeRules(MyNode<T> node) {
+        if (node.isUncleRed()) {
+            uncleIsRedRule(node);
+        } else if (node.isUncleBlack()) {
+            if (node.isLeftLeftChild()) {
+                uncleIsBlackLeftLeftCase(node);
+            } else if (node.isLeftRightChild()) {
+                uncleIsBlackLeftRightCase(node);
+            } else if (node.isRightRightChild()) {
+                uncleIsBlackRightRightCase(node);
+            } else if (node.isRightLeftChild()) {
+                uncleIsBlackRightLeftCase(node);
+            }
+        }
     }
 
     private void uncleIsRedRule(MyNode<T> node) {
@@ -165,6 +195,19 @@ public class MyTreeSet<T> implements Set<T> {
         }
     }
 
+    private void uncleIsBlackRightLeftCase(MyNode<T> node) {
+        MyNode<T> grandParent = node.getParent().getParent();
+        MyNode<T> parent = node.getParent();
+
+        parent.setLeft(node.getRight());
+        grandParent.setRight(node);
+        node.setParent(grandParent);
+        node.setRight(parent);
+        parent.setParent(node);
+
+        uncleIsBlackRightRightCase(parent);
+    }
+
     @Override
     public boolean remove(Object o) {
         return false;
@@ -172,12 +215,20 @@ public class MyTreeSet<T> implements Set<T> {
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        return false;
+        boolean containsAll = true;
+        for (Object o : c) {
+            containsAll = containsAll && contains(o);
+        }
+        return containsAll;
     }
 
     @Override
     public boolean addAll(Collection<? extends T> c) {
-        return false;
+        boolean isAdded = true;
+        for (Object o : c) {
+            isAdded = isAdded && add((T) o);
+        }
+        return isAdded;
     }
 
     @Override
@@ -273,6 +324,15 @@ public class MyTreeSet<T> implements Set<T> {
         public boolean isRightRightChild() {
             if (parent != null && parent.getParent() != null) {
                 if (parent.getParent().getRight().getRight().getValue().equals(value)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public boolean isRightLeftChild() {
+            if (parent != null && parent.getParent() != null) {
+                if (parent.getParent().getRight().getLeft().getValue().equals(value)) {
                     return true;
                 }
             }
