@@ -41,7 +41,9 @@ public abstract class SetTest {
         set.add(1);
         set.add(2);
         set.add(3);
-        Assert.assertEquals(3, set.size());
+        set.add(4);
+        set.add(5);
+        Assert.assertEquals(5, set.size());
     }
 
     @Test
@@ -332,7 +334,7 @@ public abstract class SetTest {
             counter++;
         }
 
-        Assert.assertEquals(4, set.size());
+        Assert.assertEquals(counter, set.size());
     }
 
 

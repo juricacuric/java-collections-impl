@@ -1,9 +1,7 @@
 package set;
 
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Set;
+import java.lang.reflect.Array;
+import java.util.*;
 
 public class MyTreeSet<T> implements Set<T> {
 
@@ -31,16 +29,17 @@ public class MyTreeSet<T> implements Set<T> {
         while (iterNode != null) {
             int result = comparator.compare(iterNode.getValue(), (T) o);
             if (result < 0) {
-                if (iterNode.getLeft() == null) {
-                    return false;
-                } else {
-                    iterNode = iterNode.getLeft();
-                }
-            } else if (result > 0) {
                 if (iterNode.getRight() == null) {
                     return false;
                 } else {
                     iterNode = iterNode.getRight();
+                }
+
+            } else if (result > 0) {
+                if (iterNode.getLeft() == null) {
+                    return false;
+                } else {
+                    iterNode = iterNode.getLeft();
                 }
             } else {
                 return true;
@@ -51,51 +50,52 @@ public class MyTreeSet<T> implements Set<T> {
 
     @Override
     public Iterator<T> iterator() {
-        return null;
+        return new MyIterator<>(root);
     }
 
     @Override
     public Object[] toArray() {
-        return new Object[0];
+        Object[] array = new Object[size];
+        int index = 0;
+        for (Object o : this) {
+            array[index++] = o;
+        }
+        return array;
     }
 
     @Override
     public <T1> T1[] toArray(T1[] a) {
-        return null;
+        T1[] array = (T1[]) Array.newInstance(a.getClass(), size);
+        int index = 0;
+        for (Object o : this) {
+            array[index++] = (T1) o;
+        }
+        return array;
     }
 
     @Override
     public boolean add(T t) {
+        MyNode<T> node = new MyNode<>(t);
         if (root == null) {
-            root = new MyNode<>(t);
+            root = node;
             root.setBlack();
             size++;
             return true;
         }
-        MyNode<T> node = new MyNode<>(t);
         node.setRed();
-        boolean isAdded = addNode(node);
+        boolean isAdded = addNode(node, root);
+        if (isAdded) {
+            size++;
+        }
         return isAdded;
     }
 
-    public boolean addNode(MyNode<T> nodeForAdding) {
-        MyNode<T> iterNode = root;
+    public boolean addNode(MyNode<T> nodeForAdding, MyNode<T> rootNode) {
+        MyNode<T> iterNode = rootNode;
         boolean isAdded = false;
         while (iterNode != null) {
             int result = comparator.compare(iterNode.getValue(), nodeForAdding.getValue());
             if (result < 0) {
-                if (iterNode.getLeft() == null) {
-                    iterNode.setLeft(nodeForAdding);
-                    nodeForAdding.setParent(iterNode);
-                    addNodeRules(nodeForAdding);
-
-                    iterNode = null;
-                    isAdded = true;
-                    size++;
-                } else {
-                    iterNode = iterNode.getLeft();
-                }
-            } else if (result > 0) {
                 if (iterNode.getRight() == null) {
                     iterNode.setRight(nodeForAdding);
                     nodeForAdding.setParent(iterNode);
@@ -103,9 +103,19 @@ public class MyTreeSet<T> implements Set<T> {
 
                     iterNode = null;
                     isAdded = true;
-                    size++;
                 } else {
                     iterNode = iterNode.getRight();
+                }
+            } else if (result > 0) {
+                if (iterNode.getLeft() == null) {
+                    iterNode.setLeft(nodeForAdding);
+                    nodeForAdding.setParent(iterNode);
+                    addNodeRules(nodeForAdding);
+
+                    iterNode = null;
+                    isAdded = true;
+                } else {
+                    iterNode = iterNode.getLeft();
                 }
             } else {
                 iterNode = null;
@@ -153,6 +163,13 @@ public class MyTreeSet<T> implements Set<T> {
         MyNode<T> parent = node.getParent();
 
         parent.setParent(grandParent.getParent());
+        if (grandParent.getParent() != null) {
+            if (grandParent.amILeftChild()) {
+                grandParent.getParent().setLeft(parent);
+            } else if (grandParent.amIRightChild()) {
+                grandParent.getParent().setRight(parent);
+            }
+        }
         boolean grandParentColor = grandParent.getColor();
         grandParent.setParent(parent);
         grandParent.setColor(parent.getColor());
@@ -183,6 +200,13 @@ public class MyTreeSet<T> implements Set<T> {
         MyNode<T> parent = node.getParent();
 
         parent.setParent(grandParent.getParent());
+        if (grandParent.getParent() != null) {
+            if (grandParent.amILeftChild()) {
+                grandParent.getParent().setLeft(parent);
+            } else if (grandParent.amIRightChild()) {
+                grandParent.getParent().setRight(parent);
+            }
+        }
         boolean grandParentColor = grandParent.getColor();
         grandParent.setParent(parent);
         grandParent.setColor(parent.getColor());
@@ -226,19 +250,39 @@ public class MyTreeSet<T> implements Set<T> {
     public boolean addAll(Collection<? extends T> c) {
         boolean isAdded = true;
         for (Object o : c) {
-            isAdded = isAdded && add((T) o);
+            isAdded = add((T) o) && isAdded;
         }
         return isAdded;
     }
 
     @Override
     public boolean retainAll(Collection<?> c) {
-        return false;
+        Set<T> elementsToAdd = new HashSet<>();
+        for (Object o : c) {
+            if (contains(o)) {
+                elementsToAdd.add((T) o);
+            }
+        }
+
+        boolean areAllRetained = size == elementsToAdd.size();
+        clear();
+        addAll(elementsToAdd);
+        return areAllRetained;
     }
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        return false;
+        Set<T> elementsToAdd = new HashSet<>();
+        for (T t : this) {
+            if (!c.contains(t)) {
+                elementsToAdd.add(t);
+            }
+        }
+
+        boolean areAllRemoved = size == elementsToAdd.size();
+        clear();
+        addAll(elementsToAdd);
+        return areAllRemoved;
     }
 
     @Override
@@ -262,14 +306,25 @@ public class MyTreeSet<T> implements Set<T> {
             this.value = value;
         }
 
+        public boolean amILeftChild() {
+            return parent != null && value.equals(parent.getLeft().getValue());
+        }
+
+        public boolean amIRightChild() {
+            return parent != null && value.equals(parent.getRight().getValue());
+        }
+
         public boolean isUncleRed() {
-            if (parent != null){
-                if (parent.getParent() != null) {
-                    if (parent.getLeft().getLeft().getValue().equals(value) ||
-                            parent.getLeft().getRight().getValue().equals(value)) {
-                        return parent.getRight().isRed();
-                    } else {
-                        return parent.getLeft().isRed();
+            if (this.parent != null && parent.getParent() != null){
+                MyNode<T> grandParent = parent.getParent();
+                if ((grandParent.getLeft() != null && grandParent.getLeft().getLeft() != null && grandParent.getLeft().getLeft().getValue().equals(value)) ||
+                        (grandParent.getLeft()!= null && grandParent.getLeft().getRight() != null && grandParent.getLeft().getRight().getValue().equals(value))) {
+                    if (grandParent.getRight() != null) {
+                        return grandParent.getRight().isRed();
+                    }
+                } else {
+                    if (grandParent.getLeft() != null) {
+                        return grandParent.getLeft().isRed();
                     }
                 }
             }
@@ -277,26 +332,36 @@ public class MyTreeSet<T> implements Set<T> {
         }
 
         public void changeUncleColor(boolean color) {
-            if (parent != null){
-                if (parent.getParent() != null) {
-                    if (parent.getLeft().getLeft().getValue().equals(value) ||
-                            parent.getLeft().getRight().getValue().equals(value)) {
-                        parent.getRight().setColor(color);
-                    } else {
-                        parent.getLeft().setColor(color);
+            if (this.parent != null && parent.getParent() != null){
+                MyNode<T> grandParent = parent.getParent();
+                if ((grandParent.getLeft() != null && grandParent.getLeft().getLeft() != null && grandParent.getLeft().getLeft().getValue().equals(value)) ||
+                        (grandParent.getLeft()!= null && grandParent.getLeft().getRight() != null && grandParent.getLeft().getRight().getValue().equals(value))) {
+                    if (grandParent.getRight() != null) {
+                        grandParent.getRight().setColor(color);
+                    }
+                } else {
+                    if (grandParent.getLeft() != null) {
+                        grandParent.getLeft().setColor(color);
                     }
                 }
             }
         }
 
         public boolean isUncleBlack() {
-            if (parent != null){
-                if (parent.getParent() != null) {
-                    if (parent.getLeft().getLeft().getValue().equals(value) ||
-                            parent.getLeft().getRight().getValue().equals(value)) {
-                        return parent.getRight().isBlack();
+            if (this.parent != null && parent.getParent() != null){
+                MyNode<T> grandParent = parent.getParent();
+                if ((grandParent.getLeft() != null && grandParent.getLeft().getLeft() != null && grandParent.getLeft().getLeft().getValue().equals(value)) ||
+                        (grandParent.getLeft()!= null && grandParent.getLeft().getRight() != null && grandParent.getLeft().getRight().getValue().equals(value))) {
+                    if (grandParent.getRight() != null) {
+                        return grandParent.getRight().isBlack();
                     } else {
-                        return parent.getLeft().isBlack();
+                        return true;
+                    }
+                } else {
+                    if (grandParent.getLeft() != null) {
+                        return grandParent.getLeft().isBlack();
+                    } else {
+                        return true;
                     }
                 }
             }
@@ -305,7 +370,8 @@ public class MyTreeSet<T> implements Set<T> {
 
         public boolean isLeftLeftChild() {
             if (parent != null && parent.getParent() != null) {
-                if (parent.getParent().getLeft().getLeft().getValue().equals(value)) {
+                if (parent.getParent().getLeft() != null && parent.getParent().getLeft().getLeft() != null &&
+                        parent.getParent().getLeft().getLeft().getValue().equals(value)) {
                     return true;
                 }
             }
@@ -314,7 +380,8 @@ public class MyTreeSet<T> implements Set<T> {
 
         public boolean isLeftRightChild() {
             if (parent != null && parent.getParent() != null) {
-                if (parent.getParent().getLeft().getRight().getValue().equals(value)) {
+                if (parent.getParent().getLeft() != null && parent.getParent().getLeft().getRight() != null &&
+                        parent.getParent().getLeft().getRight().getValue().equals(value)) {
                     return true;
                 }
             }
@@ -323,7 +390,8 @@ public class MyTreeSet<T> implements Set<T> {
 
         public boolean isRightRightChild() {
             if (parent != null && parent.getParent() != null) {
-                if (parent.getParent().getRight().getRight().getValue().equals(value)) {
+                if (parent.getParent().getRight() != null && parent.getParent().getRight().getRight() != null &&
+                        parent.getParent().getRight().getRight().getValue().equals(value)) {
                     return true;
                 }
             }
@@ -332,7 +400,8 @@ public class MyTreeSet<T> implements Set<T> {
 
         public boolean isRightLeftChild() {
             if (parent != null && parent.getParent() != null) {
-                if (parent.getParent().getRight().getLeft().getValue().equals(value)) {
+                if (parent.getParent().getRight() != null && parent.getParent().getRight().getLeft() != null &&
+                        parent.getParent().getRight().getLeft().getValue().equals(value)) {
                     return true;
                 }
             }
@@ -394,6 +463,38 @@ public class MyTreeSet<T> implements Set<T> {
 
         public void setColor(boolean color) {
             this.color = color;
+        }
+    }
+
+    private class MyIterator<T> implements Iterator<T> {
+
+        Stack<MyNode<T>> stack;
+
+        public MyIterator(MyNode<T> node) {
+            stack = new Stack<>();
+            explore(node);
+        }
+
+        private void explore(MyNode<T> node) {
+            while (node != null) {
+                stack.push(node);
+                node = node.getLeft();
+            }
+        }
+
+        @Override
+        public boolean hasNext() {
+            return !stack.isEmpty();
+        }
+
+        @Override
+        public T next() {
+            MyNode<T> node = stack.pop();
+
+            if (node.getRight() != null) {
+                explore(node.getRight());
+            }
+            return node.getValue();
         }
     }
 }
