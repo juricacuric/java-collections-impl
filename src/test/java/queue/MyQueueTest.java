@@ -1,8 +1,12 @@
 package queue;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -29,10 +33,12 @@ public class MyQueueTest {
             }
         });
 
+        List<Integer> list = Collections.synchronizedList(new ArrayList<>());
         executorService.submit(() -> {
             try {
                 while (true) {
                     Integer value = queue.dequeue();
+                    list.add(value);
                     System.out.println("Value - "  + value);
                 }
             } catch (InterruptedException e) {
@@ -42,10 +48,12 @@ public class MyQueueTest {
 
         try {
             executorService.shutdown();
-            executorService.awaitTermination(1, TimeUnit.MINUTES);
+            executorService.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        Assert.assertEquals(20, list.size());
     }
 
 
